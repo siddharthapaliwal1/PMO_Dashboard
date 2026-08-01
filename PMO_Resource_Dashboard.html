@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PMO Resource Allocation Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --navy:#1a2e4a;--navy2:#243d5e;--blue:#2563eb;--blue-lt:#eff6ff;
+    --teal:#0891b2;--teal-lt:#ecfeff;
+    --green:#16a34a;--green-lt:#f0fdf4;--green-bd:#bbf7d0;
+    --yellow:#d97706;--yellow-lt:#fffbeb;--yellow-bd:#fde68a;
+    --red:#dc2626;--red-lt:#fef2f2;--red-bd:#fecaca;
+    --grey:#64748b;--grey-lt:#f8fafc;--grey-bd:#e2e8f0;
+    --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+    --border:#e2e8f0;--white:#fff;
+    --radius:10px;--radius-sm:6px;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+    --shadow-md:0 4px 12px rgba(0,0,0,.1);
+  }
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#f1f5f9;color:var(--text);font-size:14px;min-height:100vh}
+
+  /* ── Header ── */
+  .header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);padding:0;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+  .header-inner{max-width:1400px;margin:0 auto;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .header-left{display:flex;align-items:center;gap:14px}
+  .logo-box{width:40px;height:40px;background:rgba(255,255,255,.12);border-radius:8px;display:flex;align-items:center;justify-content:center}
+  .logo-box svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .header-title{color:#fff;font-size:17px;font-weight:700;letter-spacing:-.2px}
+  .header-sub{color:rgba(255,255,255,.6);font-size:11px;margin-top:2px}
+  .filters-bar{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .month-selector{display:flex;align-items:center;gap:10px}
+  .month-selector label{color:rgba(255,255,255,.75);font-size:12px;font-weight:500;white-space:nowrap}
+  .month-selector select{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:7px 32px 7px 12px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;min-width:130px}
+  .month-selector select option{background:#1a2e4a;color:#fff}
+  .month-selector select:focus{outline:none;border-color:rgba(255,255,255,.5)}
+
+  /* ── KPI Cards ── */
+  .main{max-width:1400px;margin:0 auto;padding:24px 28px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+  .kpi-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .kpi-card.blue::before{background:var(--blue)}
+  .kpi-card.green::before{background:var(--green)}
+  .kpi-card.yellow::before{background:var(--yellow)}
+  .kpi-card.red::before{background:var(--red)}
+  .kpi-label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .kpi-value{font-size:32px;font-weight:800;line-height:1;margin-bottom:4px}
+  .kpi-card.blue .kpi-value{color:var(--blue)}
+  .kpi-card.green .kpi-value{color:var(--green)}
+  .kpi-card.yellow .kpi-value{color:var(--yellow)}
+  .kpi-card.red .kpi-value{color:var(--red)}
+  .kpi-desc{font-size:11px;color:var(--text3)}
+  .kpi-icon{position:absolute;right:18px;top:50%;transform:translateY(-50%);opacity:.08}
+  .kpi-icon svg{width:52px;height:52px}
+
+  /* ── Section title ── */
+  .section-title{font-size:13px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .section-title span{display:inline-block;width:3px;height:14px;background:var(--blue);border-radius:2px}
+
+  /* ── Summary Table ── */
+  .table-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;margin-bottom:24px}
+  .table-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .table-header-title{font-size:14px;font-weight:700;color:var(--text)}
+  .table-header-sub{font-size:12px;color:var(--text3)}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:#f8fafc;padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
+  thead th.center{text-align:center}
+  tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:#f8fafc}
+  tbody tr.expanded{background:var(--blue-lt)}
+  td{padding:12px 16px;font-size:13px;vertical-align:middle}
+  td.center{text-align:center}
+  .emp-name{font-weight:600;color:var(--text);display:flex;align-items:center;gap:10px}
+  .avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+  .pct-bar-wrap{display:flex;align-items:center;gap:8px}
+  .pct-bar-track{flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:80px}
+  .pct-bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+  .pct-bar-fill.proj{background:var(--blue)}
+  .pct-bar-fill.meridian{background:var(--teal)}
+  .pct-val{font-size:12px;font-weight:600;min-width:36px;text-align:right}
+  .badge-total{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700}
+  .badge-total.green{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+  .badge-total.yellow{background:var(--yellow-lt);color:var(--yellow);border:1px solid var(--yellow-bd)}
+  .badge-total.red{background:var(--red-lt);color:var(--red);border:1px solid var(--red-bd)}
+  .badge-total.grey{background:var(--grey-lt);color:var(--grey);border:1px solid var(--grey-bd)}
+  .chevron{transition:transform .25s;color:var(--text3);display:inline-flex;align-items:center}
+  .chevron.open{transform:rotate(90deg)}
+
+  /* ── Drill-down panel ── */
+  .drill-row td{padding:0}
+  .drill-panel{background:#f8fafc;border-top:2px solid var(--blue);padding:20px 24px;display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+  .drill-left{flex:1;min-width:260px}
+  .drill-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+  .proj-list{list-style:none}
+  .proj-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-sm);margin-bottom:4px;background:var(--white);border:1px solid var(--border)}
+  .proj-item.meridian-row{background:#e0f2fe;border-color:#bae6fd;margin-top:10px}
+  .proj-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .proj-name{flex:1;font-size:12px;color:var(--text)}
+  .proj-item.meridian-row .proj-name{font-weight:600;color:#0369a1}
+  .proj-pct{font-size:12px;font-weight:700;color:var(--text)}
+  .proj-item.meridian-row .proj-pct{color:#0369a1}
+  .proj-bar{flex:1;height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;max-width:100px}
+  .proj-bar-fill{height:100%;border-radius:2px}
+  .meridian-divider{font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;padding:6px 0 2px;display:flex;align-items:center;gap:6px}
+  .meridian-divider::after{content:'';flex:1;height:1px;background:#bae6fd}
+  .drill-right{width:220px;flex-shrink:0}
+  .chart-wrap{position:relative;height:200px;width:100%}
+  .chart-legend{margin-top:10px}
+  .leg-item{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px;color:var(--text2)}
+  .leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+  /* ── No data state ── */
+  .no-data{text-align:center;padding:48px 20px;color:var(--text3)}
+  .no-data svg{width:40px;height:40px;margin-bottom:12px;opacity:.3}
+  .no-data p{font-size:14px}
+
+  /* ── Footer ── */
+  .footer{text-align:center;padding:20px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);background:var(--white);margin-top:8px}
+
+  @media(max-width:768px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)}
+    .drill-panel{flex-direction:column}
+    .drill-right{width:100%}
+    .main{padding:16px}
+    .header-inner{padding:12px 16px}
+    .filters-bar{width:100%;gap:10px}
+    .month-selector{flex:1;min-width:140px}
+    .month-selector select{width:100%}
+  }
+  @media(max-width:480px){
+    .kpi-grid{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="logo-box">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      </div>
+      <div>
+        <div class="header-title">PMO Resource Allocation Dashboard</div>
+        <div class="header-sub">Interactive Employee Allocation View · Meridian Holdings</div>
+      </div>
+    </div>
+    <div class="filters-bar">
+      <div class="month-selector">
+        <label>Select Month</label>
+        <select id="monthSelect" onchange="render()"></select>
+      </div>
+      <div class="month-selector">
+        <label>Role</label>
+        <select id="roleSelect" onchange="render()">
+          <option value="All">All Roles</option>
+          <option value="Project Manager">Project Manager</option>
+          <option value="Business Analyst">Business Analyst</option>
+        </select>
+      </div>
+      <div class="month-selector">
+        <label>Allocation Type</label>
+        <select id="allocTypeSelect" onchange="render()">
+          <option value="All">All</option>
+          <option value="Project">Project Allocation</option>
+          <option value="Meridian">Meridian Holdings</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <div class="kpi-grid">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Employees</div>
+      <div class="kpi-value" id="kpi-total">—</div>
+      <div class="kpi-desc">Active in selected month</div>
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Fully Allocated</div>
+      <div class="kpi-value" id="kpi-full">—</div>
+      <div class="kpi-desc">Employees at exactly 100%</div>
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">Under Allocated</div>
+      <div class="kpi-value" id="kpi-under">—</div>
+      <div class="kpi-desc">Employees below 100%</div>
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Over Allocated</div>
+      <div class="kpi-value" id="kpi-over">—</div>
+      <div class="kpi-desc">Employees above 100%</div>
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <div class="table-header-title" id="tableTitle">Resource Allocation Summary</div>
+        <div class="table-header-sub">Click any row to see project-level breakdown · Meridian Holdings shown separately</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="mainTable">
+        <thead>
+          <tr>
+            <th style="width:220px">Employee</th>
+            <th class="center" style="width:200px">Project Allocation</th>
+            <th class="center" style="width:200px">Meridian Holdings</th>
+            <th class="center" style="width:120px">Total</th>
+            <th class="center" style="width:44px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="font-size:11px;color:var(--text3);text-align:right;margin-top:-16px;margin-bottom:16px">
+    * Meridian Holdings is a billing entity, not a project. Project % + Meridian % = 100% per employee.
+  </div>
+</main>
+
+<div class="footer">PMO Resource Allocation Dashboard · Data source: PMO_Resources_Dashboard.xlsx · All allocations rounded to nearest %</div>
+
+<script>
+const RAW = [
+  ["James Anderson","Project Manager","Mar'26","Project Falcon",0.1],
+  ["James Anderson","Project Manager","Mar'26","Global Helpdesk Support",0.9],
+  ["Michael Torres","Project Manager","Mar'26","Customer Portal Revamp",0.9],
+  ["Michael Torres","Project Manager","Mar'26","Project Falcon",0.1],
+  ["Daniel Brown","Business Analyst","Mar'26","Customer Portal Revamp",1],
+  ["David Kim","Project Manager","Mar'26","HR Systems Upgrade",0.5],
+  ["Sofia Novak","Project Manager","Mar'26","Regional Staff Website - Site A",0.05],
+  ["Sofia Novak","Project Manager","Mar'26","Regional Staff Website - Site B",0.05],
+  ["Sofia Novak","Project Manager","Mar'26","Summer Learning Initiative",0.15],
+  ["Sofia Novak","Project Manager","Mar'26","Project Falcon",0.05],
+  ["Lucas Martin","Business Analyst","Mar'26","HR Systems Upgrade",1],
+  ["Sophie Bennett","Business Analyst","Mar'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Mar'26","Learner Management System",1],
+  ["Marco Rossi","Business Analyst","Mar'26","Customer Portal Revamp",1],
+  ["James Anderson","Project Manager","Apr'26","Procurement Process Rollout",1],
+  ["Michael Torres","Project Manager","Apr'26","Customer Portal Revamp",0.9],
+  ["Michael Torres","Project Manager","Apr'26","Project Falcon",0.1],
+  ["Daniel Brown","Business Analyst","Apr'26","Customer Portal Revamp",0.9],
+  ["Daniel Brown","Business Analyst","Apr'26","Project Falcon",0.1],
+  ["David Kim","Project Manager","Apr'26","HR Systems Upgrade",0.5],
+  ["Sofia Novak","Project Manager","Apr'26","Corporate Website Revamp",0.15],
+  ["Lucas Martin","Business Analyst","Apr'26","HR Systems Upgrade",0.8],
+  ["Lucas Martin","Business Analyst","Apr'26","Procurement Process Rollout",0.2],
+  ["Sophie Bennett","Business Analyst","Apr'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Apr'26","Learner Management System",1],
+  ["Marco Rossi","Business Analyst","Apr'26","Customer Portal Revamp",1],
+  ["Anna Kowalski","Project Manager","Apr'26","Analytics Platform Implementation",0.15],
+  ["James Anderson","Project Manager","May'26","Procurement Process Rollout",0.8],
+  ["James Anderson","Project Manager","May'26","LMS Integration Project",0.1],
+  ["Michael Torres","Project Manager","May'26","Customer Portal Revamp",1],
+  ["Daniel Brown","Business Analyst","May'26","Customer Portal Revamp",1],
+  ["David Kim","Project Manager","May'26","HR Systems Upgrade",0.7],
+  ["Sofia Novak","Project Manager","May'26","Campus Website Project",0.05],
+  ["Lucas Martin","Business Analyst","May'26","HR Systems Upgrade",0.7],
+  ["Lucas Martin","Business Analyst","May'26","Procurement Process Rollout",0.2],
+  ["Sophie Bennett","Business Analyst","May'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","May'26","Learner Management System",1],
+  ["Marco Rossi","Business Analyst","May'26","Customer Portal Revamp",0.1],
+  ["Anna Kowalski","Project Manager","May'26","Analytics Platform Implementation",0.15],
+  ["James Anderson","Project Manager","Jun'26","Procurement Process Rollout",0.3],
+  ["James Anderson","Project Manager","Jun'26","LMS Integration Phase 2",0.1],
+  ["James Anderson","Project Manager","Jun'26","LMS Development Phase 2",0.1],
+  ["James Anderson","Project Manager","Jun'26","Project Horizon",0.1],
+  ["James Anderson","Project Manager","Jun'26","Merchandise Platform",0.1],
+  ["Michael Torres","Project Manager","Jun'26","Customer Portal Revamp",1],
+  ["Daniel Brown","Business Analyst","Jun'26","Customer Portal Revamp",1],
+  ["David Kim","Project Manager","Jun'26","HR Systems Upgrade",0.5],
+  ["Sofia Novak","Project Manager","Jun'26","Campus Website Project",0.1],
+  ["Lucas Martin","Business Analyst","Jun'26","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Jun'26","Procurement Process Rollout",0.2],
+  ["Sophie Bennett","Business Analyst","Jun'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Jun'26","Learner Management System",1],
+  ["Marco Rossi","Business Analyst","Jun'26","LMS Integration Phase 2",0.25],
+  ["Marco Rossi","Business Analyst","Jun'26","Merchandise Platform",0.2],
+  ["Marco Rossi","Business Analyst","Jun'26","LMS Development Phase 2",0.25],
+  ["James Anderson","Project Manager","Jul'26","LMS Integration Phase 2",0.1],
+  ["James Anderson","Project Manager","Jul'26","LMS Development Phase 2",0.1],
+  ["Michael Torres","Project Manager","Jul'26","Customer Portal Revamp",1],
+  ["Daniel Brown","Business Analyst","Jul'26","Customer Portal Revamp",0.5],
+  ["David Kim","Project Manager","Jul'26","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Jul'26","HR Systems Upgrade",0.2],
+  ["Sophie Bennett","Business Analyst","Jul'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Jul'26","Learner Management System",1],
+  ["Marco Rossi","Business Analyst","Jul'26","LMS Integration Phase 2",0.25],
+  ["Marco Rossi","Business Analyst","Jul'26","LMS Development Phase 2",0.1],
+  ["James Anderson","Project Manager","Aug'26","LMS Integration Phase 2",0.1],
+  ["Michael Torres","Project Manager","Aug'26","Customer Portal Revamp",1],
+  ["Daniel Brown","Business Analyst","Aug'26","Customer Portal Revamp",0.5],
+  ["David Kim","Project Manager","Aug'26","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Aug'26","HR Systems Upgrade",0.2],
+  ["Sophie Bennett","Business Analyst","Aug'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Aug'26","Learner Management System",1],
+  ["Marco Rossi","Business Analyst","Aug'26","LMS Integration Phase 2",0.25],
+  ["Michael Torres","Project Manager","Sep'26","Customer Portal Revamp",1],
+  ["Daniel Brown","Business Analyst","Sep'26","Customer Portal Revamp",0.25],
+  ["David Kim","Project Manager","Sep'26","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Sep'26","HR Systems Upgrade",0.2],
+  ["Sophie Bennett","Business Analyst","Sep'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Sep'26","Learner Management System",1],
+  ["Michael Torres","Project Manager","Oct'26","Customer Portal Revamp",0.5],
+  ["David Kim","Project Manager","Oct'26","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Oct'26","HR Systems Upgrade",0.2],
+  ["Sophie Bennett","Business Analyst","Oct'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Oct'26","Learner Management System",1],
+  ["David Kim","Project Manager","Nov'26","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Nov'26","HR Systems Upgrade",0.2],
+  ["Sophie Bennett","Business Analyst","Nov'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Nov'26","Learner Management System",1],
+  ["David Kim","Project Manager","Dec'26","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Dec'26","HR Systems Upgrade",0.2],
+  ["Sophie Bennett","Business Analyst","Dec'26","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Dec'26","Learner Management System",1],
+  ["David Kim","Project Manager","Jan'27","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Jan'27","HR Systems Upgrade",0.2],
+  ["Sophie Bennett","Business Analyst","Jan'27","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Jan'27","Learner Management System",1],
+  ["David Kim","Project Manager","Feb'27","HR Systems Upgrade",0.5],
+  ["Lucas Martin","Business Analyst","Feb'27","HR Systems Upgrade",0.2],
+  ["Sophie Bennett","Business Analyst","Feb'27","Learner Management System",1],
+  ["Emma Clarke","Project Manager","Feb'27","Learner Management System",1],
+  ["David Kim","Project Manager","Mar'26","Meridian Holdings",0.5],
+  ["Sofia Novak","Project Manager","Mar'26","Meridian Holdings",0.7],
+  ["David Kim","Project Manager","Apr'26","Meridian Holdings",0.5],
+  ["Sofia Novak","Project Manager","Apr'26","Meridian Holdings",0.85],
+  ["Anna Kowalski","Project Manager","Apr'26","Meridian Holdings",0.85],
+  ["James Anderson","Project Manager","May'26","Meridian Holdings",0.09999999999999998],
+  ["David Kim","Project Manager","May'26","Meridian Holdings",0.30000000000000004],
+  ["Sofia Novak","Project Manager","May'26","Meridian Holdings",0.95],
+  ["Lucas Martin","Business Analyst","May'26","Meridian Holdings",0.10000000000000009],
+  ["Marco Rossi","Business Analyst","May'26","Meridian Holdings",0.9],
+  ["Anna Kowalski","Project Manager","May'26","Meridian Holdings",0.85],
+  ["James Anderson","Project Manager","Jun'26","Meridian Holdings",0.30000000000000004],
+  ["David Kim","Project Manager","Jun'26","Meridian Holdings",0.5],
+  ["Sofia Novak","Project Manager","Jun'26","Meridian Holdings",0.9],
+  ["Lucas Martin","Business Analyst","Jun'26","Meridian Holdings",0.30000000000000004],
+  ["Marco Rossi","Business Analyst","Jun'26","Meridian Holdings",0.30000000000000004],
+  ["James Anderson","Project Manager","Jul'26","Meridian Holdings",0.8],
+  ["Daniel Brown","Business Analyst","Jul'26","Meridian Holdings",0.5],
+  ["David Kim","Project Manager","Jul'26","Meridian Holdings",0.5],
+  ["Lucas Martin","Business Analyst","Jul'26","Meridian Holdings",0.8],
+  ["Marco Rossi","Business Analyst","Jul'26","Meridian Holdings",0.65],
+  ["James Anderson","Project Manager","Aug'26","Meridian Holdings",0.9],
+  ["Daniel Brown","Business Analyst","Aug'26","Meridian Holdings",0.5],
+  ["David Kim","Project Manager","Aug'26","Meridian Holdings",0.5],
+  ["Lucas Martin","Business Analyst","Aug'26","Meridian Holdings",0.8],
+  ["Marco Rossi","Business Analyst","Aug'26","Meridian Holdings",0.75],
+  ["Daniel Brown","Business Analyst","Sep'26","Meridian Holdings",0.75],
+  ["David Kim","Project Manager","Sep'26","Meridian Holdings",0.5],
+  ["Lucas Martin","Business Analyst","Sep'26","Meridian Holdings",0.8],
+  ["Michael Torres","Project Manager","Oct'26","Meridian Holdings",0.5],
+  ["David Kim","Project Manager","Oct'26","Meridian Holdings",0.5],
+  ["Lucas Martin","Business Analyst","Oct'26","Meridian Holdings",0.8],
+  ["David Kim","Project Manager","Nov'26","Meridian Holdings",0.5],
+  ["Lucas Martin","Business Analyst","Nov'26","Meridian Holdings",0.8],
+  ["David Kim","Project Manager","Dec'26","Meridian Holdings",0.5],
+  ["Lucas Martin","Business Analyst","Dec'26","Meridian Holdings",0.8],
+  ["David Kim","Project Manager","Jan'27","Meridian Holdings",0.5],
+  ["Lucas Martin","Business Analyst","Jan'27","Meridian Holdings",0.8],
+  ["David Kim","Project Manager","Feb'27","Meridian Holdings",0.5],
+  ["Lucas Martin","Business Analyst","Feb'27","Meridian Holdings",0.8]
+];
+
+const MONTH_ORDER = ["Mar'26","Apr'26","May'26","Jun'26","Jul'26","Aug'26","Sep'26","Oct'26","Nov'26","Dec'26","Jan'27","Feb'27"];
+const CHART_COLORS = ["#2563eb","#0891b2","#7c3aed","#059669","#d97706","#dc2626","#9333ea","#0284c7","#65a30d","#ea580c","#0f766e","#b45309","#4f46e5"];
+
+let expandedEmp = null;
+let chartInstance = null;
+
+function pct(v){ return Math.round(v*100); }
+
+function getInitials(name){
+  return name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+}
+
+function avatarColor(name){
+  const colors=["#2563eb","#0891b2","#7c3aed","#059669","#d97706","#db2777","#0284c7","#65a30d","#9333ea","#ea580c"];
+  let h=0; for(let c of name) h=(h*31+c.charCodeAt(0))%colors.length;
+  return colors[Math.abs(h)];
+}
+
+function buildMonthSelector(){
+  const sel=document.getElementById('monthSelect');
+  const months=[...new Set(RAW.map(r=>r[2]))].sort((a,b)=>MONTH_ORDER.indexOf(a)-MONTH_ORDER.indexOf(b));
+  months.forEach(m=>{
+    const o=document.createElement('option');
+    o.value=m; o.textContent=m;
+    if(m==="Jun'26") o.selected=true;
+    sel.appendChild(o);
+  });
+}
+
+function getMonthData(month,role,allocType){
+  const rows=RAW.filter(r=>{
+    if(r[2]!==month) return false;
+    if(role && role!=='All' && r[1]!==role) return false;
+    if(allocType==='Project' && r[3]==='Meridian Holdings') return false;
+    if(allocType==='Meridian' && r[3]!=='Meridian Holdings') return false;
+    return true;
+  });
+  const empMap={};
+  rows.forEach(([emp,empRole,,proj,alloc])=>{
+    if(!empMap[emp]) empMap[emp]={role:empRole,projects:[],meridian:0};
+    if(proj==='Meridian Holdings') empMap[emp].meridian+=alloc;
+    else empMap[emp].projects.push({name:proj,alloc});
+  });
+  return empMap;
+}
+
+function totalBadgeClass(total){
+  const t=Math.round(total*100);
+  if(t===100) return 'green';
+  if(t<100 && t>=80) return 'yellow';
+  if(t<80) return 'grey';
+  return 'red';
+}
+
+function render(){
+  const month=document.getElementById('monthSelect').value;
+  const role=document.getElementById('roleSelect').value;
+  const allocType=document.getElementById('allocTypeSelect').value;
+
+  let titleSuffix=month;
+  if(role!=='All') titleSuffix+=` · ${role}`;
+  if(allocType==='Project') titleSuffix+=' · Project Allocation Only';
+  if(allocType==='Meridian') titleSuffix+=' · Meridian Holdings Only';
+  document.getElementById('tableTitle').textContent=`Resource Allocation Summary — ${titleSuffix}`;
+
+  const data=getMonthData(month,role,allocType);
+  const emps=Object.keys(data).sort();
+
+  let total=emps.length, full=0, under=0, over=0;
+  emps.forEach(e=>{
+    const projTotal=data[e].projects.reduce((s,p)=>s+p.alloc,0);
+    const grand=projTotal+data[e].meridian;
+    const t=Math.round(grand*100);
+    if(t===100) full++;
+    else if(t<100) under++;
+    else over++;
+  });
+
+  document.getElementById('kpi-total').textContent=total;
+  document.getElementById('kpi-full').textContent=full;
+  document.getElementById('kpi-under').textContent=under;
+  document.getElementById('kpi-over').textContent=over;
+
+  const tbody=document.getElementById('tableBody');
+  tbody.innerHTML='';
+
+  if(emps.length===0){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td colspan="5"><div class="no-data"><p>No data for ${month}</p></div></td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  emps.forEach(emp=>{
+    const d=data[emp];
+    const projTotal=d.projects.reduce((s,p)=>s+p.alloc,0);
+    const grand=projTotal+d.meridian;
+    const totalPct=pct(grand);
+    const projPct=pct(projTotal);
+    const meridianPct=pct(d.meridian);
+    const badgeClass=totalBadgeClass(grand);
+    const isOpen=expandedEmp===emp;
+
+    const tr=document.createElement('tr');
+    tr.className=isOpen?'expanded':'';
+    tr.onclick=()=>toggleDrill(emp,month,role,allocType);
+    tr.innerHTML=`
+      <td>
+        <div class="emp-name">
+          <div class="avatar" style="background:${avatarColor(emp)}">${getInitials(emp)}</div>
+          <div>
+            <div>${emp}</div>
+            <div style="font-size:10.5px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-top:1px">${d.role||''}</div>
+          </div>
+        </div>
+      </td>
+      <td class="center">
+        <div class="pct-bar-wrap">
+          <div class="pct-bar-track"><div class="pct-bar-fill proj" style="width:${Math.min(projPct,100)}%"></div></div>
+          <span class="pct-val" style="color:#2563eb">${projPct}%</span>
+        </div>
+      </td>
+      <td class="center">
+        ${meridianPct>0?`<div class="pct-bar-wrap">
+          <div class="pct-bar-track"><div class="pct-bar-fill meridian" style="width:${Math.min(meridianPct,100)}%;background:var(--teal)"></div></div>
+          <span class="pct-val" style="color:var(--teal)">${meridianPct}%</span>
+        </div>`:`<span style="color:var(--text3);font-size:12px">—</span>`}
+      </td>
+      <td class="center"><span class="badge-total ${badgeClass}">${totalPct}%</span></td>
+      <td class="center"><span class="chevron${isOpen?' open':''}">▶</span></td>
+    `;
+    tbody.appendChild(tr);
+
+    if(isOpen){
+      const drillTr=document.createElement('tr');
+      drillTr.className='drill-row';
+      const drillTd=document.createElement('td');
+      drillTd.colSpan=5;
+      drillTd.appendChild(buildDrillPanel(emp,d,month));
+      drillTr.appendChild(drillTd);
+      tbody.appendChild(drillTr);
+    }
+  });
+}
+
+function toggleDrill(emp,month,role,allocType){
+  expandedEmp=(expandedEmp===emp)?null:emp;
+  if(chartInstance){chartInstance.destroy();chartInstance=null;}
+  render();
+  if(expandedEmp) {
+    setTimeout(()=>{
+      const canvas=document.getElementById('drillChart');
+      if(canvas) initChart(canvas,emp,month,role,allocType);
+    },50);
+  }
+}
+
+function buildDrillPanel(emp,d,month){
+  const panel=document.createElement('div');
+  panel.className='drill-panel';
+
+  // Left: project list
+  const left=document.createElement('div');
+  left.className='drill-left';
+  left.innerHTML=`<div class="drill-title">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    ${emp} — ${month} Breakdown
+  </div>`;
+
+  const ul=document.createElement('ul');
+  ul.className='proj-list';
+
+  const sorted=[...d.projects].sort((a,b)=>b.alloc-a.alloc);
+  sorted.forEach((p,i)=>{
+    const li=document.createElement('li');
+    li.className='proj-item';
+    const color=CHART_COLORS[i%CHART_COLORS.length];
+    li.innerHTML=`
+      <span class="proj-dot" style="background:${color}"></span>
+      <span class="proj-name">${p.name}</span>
+      <div class="proj-bar"><div class="proj-bar-fill" style="width:${pct(p.alloc)}%;background:${color}"></div></div>
+      <span class="proj-pct">${pct(p.alloc)}%</span>
+    `;
+    ul.appendChild(li);
+  });
+
+  if(d.meridian>0){
+    const div=document.createElement('div');
+    div.className='meridian-divider';
+    div.innerHTML='Meridian Holdings (Billing Entity)';
+    ul.appendChild(div);
+    const li=document.createElement('li');
+    li.className='proj-item meridian-row';
+    li.innerHTML=`
+      <span class="proj-dot" style="background:#0891b2"></span>
+      <span class="proj-name">Meridian Holdings</span>
+      <div class="proj-bar"><div class="proj-bar-fill" style="width:${pct(d.meridian)}%;background:#0891b2"></div></div>
+      <span class="proj-pct">${pct(d.meridian)}%</span>
+    `;
+    ul.appendChild(li);
+  }
+  left.appendChild(ul);
+
+  // Right: chart
+  const right=document.createElement('div');
+  right.className='drill-right';
+  right.innerHTML=`
+    <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Allocation Chart</div>
+    <div class="chart-wrap"><canvas id="drillChart"></canvas></div>
+    <div class="chart-legend" id="chartLegend"></div>
+  `;
+
+  panel.appendChild(left);
+  panel.appendChild(right);
+  return panel;
+}
+
+function initChart(canvas,emp,month,role,allocType){
+  const data=getMonthData(month,role,allocType);
+  const d=data[emp];
+  if(!d) return;
+
+  const labels=[...d.projects.map(p=>p.name)];
+  const values=[...d.projects.map(p=>Math.round(p.alloc*100))];
+  const colors=[...CHART_COLORS.slice(0,d.projects.length)];
+
+  if(d.meridian>0){
+    labels.push('Meridian Holdings');
+    values.push(Math.round(d.meridian*100));
+    colors.push('#0891b2');
+  }
+
+  if(chartInstance){chartInstance.destroy();chartInstance=null;}
+  chartInstance=new Chart(canvas,{
+    type:'doughnut',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed}%`}}
+      }
+    }
+  });
+
+  const legend=document.getElementById('chartLegend');
+  if(legend){
+    legend.innerHTML=labels.map((l,i)=>`
+      <div class="leg-item">
+        <span class="leg-dot" style="background:${colors[i]}"></span>
+        <span style="flex:1;font-size:11px;color:var(--text2)">${l.length>22?l.slice(0,22)+'…':l}</span>
+        <span style="font-size:11px;font-weight:600">${values[i]}%</span>
+      </div>`).join('');
+  }
+}
+
+buildMonthSelector();
+render();
+</script>
+</body>
+</html>
